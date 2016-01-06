@@ -108,7 +108,7 @@ class FSIGAR():
                 return False
 
 '''Test Vector'''
-'''
+
 ar = FSIGAR(1024, 256, 10)
 
 while True:
@@ -124,6 +124,6 @@ sk = ar.update(sk)
 sig2 = ar.sign("hello2", sk)
 print ar.verify("hello2", pk, sig2)
 print ar.verify("hello", pk, sig)
-'''
+
 
 
