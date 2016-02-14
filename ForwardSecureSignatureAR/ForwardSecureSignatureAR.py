@@ -26,16 +26,16 @@ class FSIGAR():
             return False
 
 
-    def getbwinteger(self):
+    def getbwinteger(self, bit):
         while True:
-            p = bignum(number.getPrime(self._k/2, self._randfunc))
+            p = bignum(number.getPrime(bit, self._randfunc))
             if self.isbwinteger(p):
                 return p
 
     def keggen(self):
         safe=1
-        p = self.getbwinteger()
-        q = self.getbwinteger()
+        p = self.getbwinteger(self._k/2)
+        q = self.getbwinteger(self._k/2)
         if (p - 1)*(q - 1) < pow(2, self._k - 1):
             safe = 0
         if p*q >= pow(2, self._k):

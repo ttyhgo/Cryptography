@@ -2,14 +2,17 @@ from Crypto.PublicKey.pubkey import *
 from Crypto.Util import number
 from Crypto import Random
 from Crypto.Hash import SHA256
+import time
 
 class ForwardSecureSingnature():
 
-    def __init__(self, randfunc=None):
+    def __init__(self, k, l, T, randfunc=None):
         if randfunc is None:
             randfunc = Random.new().read
         self._randfunc = randfunc
-
+        self._k = k
+        self._l = l
+        self._T = T
 
     def isbwinteger(self, p):
         if 3 == p % 4:
@@ -25,26 +28,26 @@ class ForwardSecureSingnature():
                 return p
 
 
-    def keygen(self, k, l, T):
-        p = bignum(self.getbwinteger(512))
-        q = bignum(self.getbwinteger(512))
+    def keygen(self):
+        p = bignum(self.getbwinteger(self._k/2))
+        q = bignum(self.getbwinteger(self._k/2))
         N = p * q
         s = list()
         u = list()
-        for i in range(0, l):
+        for i in range(0, self._l):
             while True:
                 temp = number.getRandomRange(3, N, self._randfunc)
                 if temp < N and 1 == GCD(temp, N):
                     s.append(temp)
                     break
 
-        for i in range(0, l):
-            order = pow(2, T + 1)
+        for i in range(0, self._l):
+            order = pow(2, self._T + 1)
             temp = pow(s[i], order, N)
             u.append(temp)
 
-        sk = [N, T, 0, s]
-        pk = [N, T, u]
+        sk = [N, self._T, 0, s]
+        pk = [N, self._T, u]
         return sk, pk
 
 
@@ -98,30 +101,32 @@ class ForwardSecureSingnature():
             return False
 
 ''' Test Vector '''
-'''
+
 ffs = ForwardSecureSingnature()
-sk, pk = ffs.keygen(1024, 10, 10)
+start = time.time()
+sk, pk = ffs.keygen(2048, 160, 1000)
+print "Keygen : %.8f" %(time.time() - start)
 
-print "secret key :"
-print sk[3][1]
-
+start = time.time()
 sig = ffs.sign(sk, "hello")
+print "Sign : %.8f" %(time.time() - start)
 
-print "signature :"
-print sig[2]
-
+start = time.time()
 print ffs.verify(pk, "hello", sig)
+print "Verify : %.8f" %(time.time() - start)
 
+start = time.time()
 sk = ffs.update(sk)
-print "Update sk :"
-print sk[3][1]
+print "Update : %.8f" %(time.time() - start)
 
+start = time.time()
 print ffs.verify(pk, "hello", sig)
+print "Verify : %.8f" %(time.time() - start)
 
-sig = ffs.sign(sk, "hello")
+start = time.time()
+sig2 = ffs.sign(sk, "hello2")
+print "Sign : %.8f" %(time.time() - start)
 
-print "Update signature :"
-print sig[2]
-
-print ffs.verify(pk, "hello", sig)
-'''
+start = time.time()
+print ffs.verify(pk, "hello2", sig2)
+print "Verify : %.8f" %(time.time() - start)

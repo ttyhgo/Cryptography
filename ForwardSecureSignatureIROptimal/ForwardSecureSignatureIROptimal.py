@@ -7,7 +7,9 @@ from Crypto.Hash import SHA256
 from Crypto.PublicKey.pubkey import *
 import time
 import random
-import os
+from random import randrange, getrandbits
+from itertools import repeat
+
 
 
 class FSSIROP():
@@ -21,9 +23,9 @@ class FSSIROP():
         self._T = T
         self._L = []
 
-    def gensafeprime(self):
+    def gensafeprime(self, bit):
         while True:
-            q = number.getPrime(self._k / 2 - 1, self._randfunc)
+            q = number.getPrime(bit - 1, self._randfunc)
             p = 2 * q + 1
             if number.isPrime(p, false_positive_prob=1e-06, randfunc=self._randfunc):
                 return p
@@ -34,17 +36,64 @@ class FSSIROP():
             if 1 == GCD(r, N):
                 return r
 
+
+
+    def isProbablePrime(self, n, t = 7):
+        """Miller-Rabin primality test"""
+
+        def isComposite(a):
+            """Check if n is composite"""
+            if pow(a, d, n) == 1:
+                return False
+            for i in range(s):
+                if pow(a, 2 ** i * d, n) == n - 1:
+                    return False
+            return True
+
+        assert n > 0
+        if n < 3:
+            return [False, False, True][n]
+        elif not n & 1:
+            return False
+        else:
+            s, d = 0, n - 1
+            while not d & 1:
+                s += 1
+                d >>= 1
+        for _ in repeat(None, t):
+            if isComposite(randrange(2, n)):
+                return False
+        return True
+
+    def getPrime(self, n):
+        """Get a n-bit prime"""
+        p = getrandbits(n)
+        while not self.isProbablePrime(p):
+            p = getrandbits(n)
+        return p
+
+    def getPrimeList(self, n, length, seed):
+        random.seed(seed)
+        list = []
+        list.append(0)
+        for i in range(1, length+1):
+            list.append(self.getPrime(n))
+        return list
+
     def keygen(self):
 
-        p1 = self.gensafeprime()
-        p2 = self.gensafeprime()
+        p1 = self.gensafeprime(self._k/2)
+        p2 = self.gensafeprime(self._k/2)
 
         n = p1 * p2
         phin = (p1 - 1) * (p2 - 1)
         t1 = self.randomingroupstar(n)
+        '''
         self._e.append(0)
         for i in range(1, self._T + 1):
             self._e.append(number.getPrime(self._l, self._randfunc))
+        '''
+        self._e = self.getPrimeList(self._l, self._T, "seed")
         f2 = 1
         for i in range(1, self._T + 1):
             f2 = f2 * self._e[i] % phin
@@ -116,12 +165,13 @@ class FSSIROP():
             else:
                 newe.append(getPrime(self._l, randfunc))
         '''
+        newe = self.getPrimeList(self._l, self._T, "seed")
         # sj = 1
         # for i in range(j+1, T):
         #    sj = sj*pow(tj, self._e[i], n) % n
         sj = p[0]
-        tj = pow(tj, self._e[j + 1], n)
-        return [j + 1, T, n, sj, tj, self._e[j + 1], randfunc]
+        tj = pow(tj, newe[j + 1], n)
+        return [j + 1, T, n, sj, tj, newe[j + 1], randfunc]
 
     def sign(self, sk, M):
         j = sk[0]
@@ -170,7 +220,6 @@ class FSSIROP():
         else:
             return False
 
-
 '''Test Vector'''
 fssir = FSSIROP(2048, 160, 1000)
 
@@ -195,7 +244,7 @@ signature2 = fssir.sign(sk, "hello2")
 print "Sign : %.8f" % (time.time() - start)
 
 start = time.time()
-print fssir.verify(pk, "hello", signature)
+print fssir.verify(pk, "hello2", signature)
 print "Verify : %.8f" % (time.time() - start)
 
 start = time.time()

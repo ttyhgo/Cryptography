@@ -4,6 +4,9 @@ from Crypto import Random
 from Crypto.Hash import SHA256
 from Crypto.PublicKey.pubkey import *
 import time
+from random import randrange, getrandbits
+from itertools import repeat
+import random
 
 class FSSIR():
     def __init__(self, k, l, T, randfunc=None):
@@ -13,9 +16,9 @@ class FSSIR():
         self._l = l
         self._T = T
 
-    def gensafeprime(self):
+    def gensafeprime(self, bit):
         while True:
-            q = number.getPrime(self._k/2-1, self._randfunc)
+            q = number.getPrime(bit-1, self._randfunc)
             p = 2*q+1
             if number.isPrime(p, false_positive_prob=1e-06, randfunc=self._randfunc):
                 return p
@@ -26,26 +29,69 @@ class FSSIR():
             if 1 == GCD(r, N):
                 return r
 
+    def isProbablePrime(self, n, t = 7):
+        """Miller-Rabin primality test"""
+
+        def isComposite(a):
+            """Check if n is composite"""
+            if pow(a, d, n) == 1:
+                return False
+            for i in range(s):
+                if pow(a, 2 ** i * d, n) == n - 1:
+                    return False
+            return True
+
+        assert n > 0
+        if n < 3:
+            return [False, False, True][n]
+        elif not n & 1:
+            return False
+        else:
+            s, d = 0, n - 1
+            while not d & 1:
+                s += 1
+                d >>= 1
+        for _ in repeat(None, t):
+            if isComposite(randrange(2, n)):
+                return False
+        return True
+
+    def getPrime(self, n):
+        """Get a n-bit prime"""
+        p = getrandbits(n)
+        while not self.isProbablePrime(p):
+            p = getrandbits(n)
+        return p
+
+    def getPrimeList(self, n, length, seed):
+        random.seed(seed)
+        list = []
+        list.append(0)
+        for i in range(1, length+1):
+            list.append(self.getPrime(n))
+        return list
+
     def keygen(self):
-        p1 = self.gensafeprime()
-        p2 = self.gensafeprime()
+        p1 = self.gensafeprime(self._k/2)
+        p2 = self.gensafeprime(self._k/2)
 
         n = p1*p2
         phin = (p1-1)*(p2-1)
         t1 = self.randomingroupstar(n)
-        e=[]
+        e= self.getPrimeList(self._l, self._T, "seed")
+        '''
         for i in range(0, self._T):
             e.append(number.getPrime(self._l, self._randfunc))
-
+       '''
         f2 = 1
         for i in range(1, self._T):
             f2 = f2*e[i] % phin
 
         s1 = pow(t1, f2, n)
-        v = inverse(pow(s1, e[0], n), n)
-        t2 = pow(t1, e[0], n)
+        v = inverse(pow(s1, e[1], n), n)
+        t2 = pow(t1, e[1], n)
 
-        i = 0
+        i = 1
         sk = [i, self._T, n, s1, t2, e[i], self._randfunc]
         pk = [n, v, self._T]
 
@@ -62,14 +108,16 @@ class FSSIR():
 
         if j == T-1:
             return None
-        newe=[]
+        newe= self.getPrimeList(self._l, T, "seed")
+        '''
         for i in range(0, self._T):
             if i <= j:
                 newe.append(0)
             else:
                 newe.append(getPrime(self._l, randfunc))
+        '''
         sj = 1
-        for i in range(j+1, T):
+        for i in range(j+1, T+1 ):
             sj = sj*pow(tj, newe[i], n) % n
         tj = pow(tj, newe[j+1], n)
         return (j+1, T, n, sj, tj, newe[j+1], randfunc)
