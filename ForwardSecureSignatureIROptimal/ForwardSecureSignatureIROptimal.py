@@ -68,42 +68,57 @@ class FSSIROP():
         for i in range(1, self._T + 1):
             self._e.append(number.getPrime(self._l, self._randfunc))
         '''
-        self._e = self.getPrimeList(self._l, self._T, self._seed)
-        f2 = 1
-        for i in range(1, self._T + 1):
-            f2 = f2 * self._e[i] % phin
+        #e = self.getPrimeList(self._l, self._T, self._seed)
+        #f2 = 1
+        #for i in range(1, self._T + 1):
+        #    f2 = f2 * self._e[i] % phin
 
-        s1 = pow(t1, f2, n)
-        v = inverse(pow(s1, self._e[1], n), n)
-        t2 = pow(t1, self._e[1], n)
+        #s1 = pow(t1, f2, n)
+        #t2 = pow(t1, e[1], n)
 
-        i = 1
-        sk = [i, self._T, n, s1, t2, self._e[i], self._randfunc]
-        pk = [n, v, self._T]
+
 
         R = [t1, 1, self._T, 1, self._T]
-        self._L.append(R)
-        for i in range(-(self._T - 2) / 2, 1):
-            self.pebblestep(self._L, n)
-        sk.append(self._L)
-        print self._L
+        L = self._L
+        L.append(R)
+        for i in range(-((self._T - 2) / 2), 1):
+            #print "pebble step ",i
+            self.pebblestep(L, n)
+
+
+        p =  L.pop(0)
+        #print "first p",p
+        s1 = p[0]
+        e = self.getprimewithseed(self._l, self._seed[1])
+        v = inverse(pow(s1, e, n), n)
+        t2 = pow(t1, e, n)
+        i = 1
+        sk = [i, self._T, n, s1, t2, e, self._randfunc, L]
+        pk = [n, v, self._T]
+        print L
         return sk, pk
 
     def pebblestep(self, L, n):
         flag = 0
-        for i in range(0, len(L) - 1):
-            if L[i][1] == L[i][2] or flag == 1:
+        i = 0
+        #print "Pebble Step start"
+        for p in L:
+            if p[1] == p[2] or flag == 1:
                 flag = 0
                 None
-            elif L[i][1] == L[i][3]:
-                self.moveleft(L[i], L, i, n)
-                if L[i][1] != L[i][2]:
-                    self.moveleft(L[i], L, i, n)
+            elif p[1] == p[3]:
+                self.moveleft(p, L, i, n)
+                if p[1] != p[2]:
+                    self.moveleft(p, L, i, n)
                     flag = 1
             else:
-                self.moveright(L[i], n)
+                self.moveright(p, n)
+            i += 1
+        #print "L",L
+        #print "Pebble Step End"
 
     def moveleft(self, p, L, i, n):
+        #print "Pebble Left"
         if p[2] == p[4]:
             p1 = []
             p1.append(p[0])
@@ -111,16 +126,19 @@ class FSSIROP():
             p1.append(p[2])
             p1.append((p[3] + p[4] + 1) / 2)
             p1.append(p[4])
-            L.insert(i + 1, p1)
+            L.insert(i+1, p1)
             p[4] = (p[3] + p[4] - 1) / 2
         e = self.getprimewithseed(self._l, self._seed[p[2]])
         p[0] = pow(p[0], e, n)
         p[2] -= 1
+        #print "Pebble Left End"
 
     def moveright(self, p, n):
+        #print "Pebble Right"
         e = self.getprimewithseed(self._l, self._seed[p[2]])
         p[0] = pow(p[0], e, n)
         p[1] += 1
+        #print "Pebble Right End"
 
     def update(self, sk):
 
@@ -134,16 +152,15 @@ class FSSIROP():
         L = sk[7]
 
         self.pebblestep(L, n)
+        #print "Udating L",L
         p = L.pop(0)
         if j == T - 1:
             return None
 
-        # sj = 1
-        # for i in range(j+1, T):
-        #    sj = sj*pow(tj, self._e[i], n) % n
         sj = p[0]
         e = self.getprimewithseed(self._l, self._seed[j + 1])
         tj = pow(tj, e, n)
+        print "Update after L",L
         return [j + 1, T, n, sj, tj, e, randfunc, L]
 
     def sign(self, sk, M):
@@ -196,7 +213,7 @@ class FSSIROP():
 
 '''Test Vector'''
 
-fssir = FSSIROP(10, 10, 5)
+fssir = FSSIROP(10, 10, 16)
 
 start = time.time()
 sk, pk = fssir.keygen()
