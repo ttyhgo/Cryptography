@@ -13,11 +13,18 @@ from itertools import repeat
 
 
 class FSSIROP():
-    def __init__(self, k, l, T, randfunc=None):
+    def __init__(self, k, l, T, randfunc=None, seed=None):
         if randfunc is None:
             self._randfunc = Random.new().read
-
-        self._e = []
+        else:
+            self._randfunc = randfunc
+        if seed is None:
+            self._seed = []
+            self._seed.append(0)
+            for i in range(1, T + 1):
+                self._seed.append(long_to_bytes(i))
+        else:
+            self._seed = seed
         self._k = k
         self._l = l
         self._T = T
@@ -36,48 +43,16 @@ class FSSIROP():
             if 1 == GCD(r, N):
                 return r
 
-
-
-    def isProbablePrime(self, n, t = 7):
-        """Miller-Rabin primality test"""
-
-        def isComposite(a):
-            """Check if n is composite"""
-            if pow(a, d, n) == 1:
-                return False
-            for i in range(s):
-                if pow(a, 2 ** i * d, n) == n - 1:
-                    return False
-            return True
-
-        assert n > 0
-        if n < 3:
-            return [False, False, True][n]
-        elif not n & 1:
-            return False
-        else:
-            s, d = 0, n - 1
-            while not d & 1:
-                s += 1
-                d >>= 1
-        for _ in repeat(None, t):
-            if isComposite(randrange(2, n)):
-                return False
-        return True
-
-    def getPrime(self, n):
-        """Get a n-bit prime"""
-        p = getrandbits(n)
-        while not self.isProbablePrime(p):
-            p = getrandbits(n)
-        return p
-
-    def getPrimeList(self, n, length, seed):
+    def getprimewithseed(self, bit, seed):
         random.seed(seed)
+        return number.getPrime(bit, self._randfunc)
+
+    def getPrimeList(self, bit, length, seedlist):
+
         list = []
         list.append(0)
         for i in range(1, length+1):
-            list.append(self.getPrime(n))
+            list.append(self.getprimewithseed(bit, seedlist[i]))
         return list
 
     def keygen(self):
@@ -93,7 +68,7 @@ class FSSIROP():
         for i in range(1, self._T + 1):
             self._e.append(number.getPrime(self._l, self._randfunc))
         '''
-        self._e = self.getPrimeList(self._l, self._T, "seed")
+        self._e = self.getPrimeList(self._l, self._T, self._seed)
         f2 = 1
         for i in range(1, self._T + 1):
             f2 = f2 * self._e[i] % phin
@@ -106,10 +81,12 @@ class FSSIROP():
         sk = [i, self._T, n, s1, t2, self._e[i], self._randfunc]
         pk = [n, v, self._T]
 
-        R = [t1, 1, 1, self._T, self._T]
+        R = [t1, 1, self._T, 1, self._T]
         self._L.append(R)
-        for i in range(-(self._T - 2) / 2, 0):
+        for i in range(-(self._T - 2) / 2, 1):
             self.pebblestep(self._L, n)
+        sk.append(self._L)
+        print self._L
         return sk, pk
 
     def pebblestep(self, L, n):
@@ -119,9 +96,9 @@ class FSSIROP():
                 flag = 0
                 None
             elif L[i][1] == L[i][3]:
-                self.moveleft(L[i], n)
+                self.moveleft(L[i], L, i, n)
                 if L[i][1] != L[i][2]:
-                    self.moveleft(L[i], i, n)
+                    self.moveleft(L[i], L, i, n)
                     flag = 1
             else:
                 self.moveright(L[i], n)
@@ -133,13 +110,16 @@ class FSSIROP():
             p1.append(p[1])
             p1.append(p[2])
             p1.append((p[3] + p[4] + 1) / 2)
+            p1.append(p[4])
             L.insert(i + 1, p1)
             p[4] = (p[3] + p[4] - 1) / 2
-        p[0] = pow(p[0], self._e[2], n)
+        e = self.getprimewithseed(self._l, self._seed[p[2]])
+        p[0] = pow(p[0], e, n)
         p[2] -= 1
 
     def moveright(self, p, n):
-        p[0] = pow(p[0], self._e[p[1]], n)
+        e = self.getprimewithseed(self._l, self._seed[p[2]])
+        p[0] = pow(p[0], e, n)
         p[1] += 1
 
     def update(self, sk):
@@ -151,27 +131,20 @@ class FSSIROP():
         tj = sk[4]
         e = sk[5]
         randfunc = sk[6]
+        L = sk[7]
 
-        self.pebblestep(self._L, n)
-        p = self._L.pop(0)
+        self.pebblestep(L, n)
+        p = L.pop(0)
         if j == T - 1:
             return None
-        '''
-        newe=[]
 
-        for i in range(0, self._T):
-            if i <= j:
-                newe.append(0)
-            else:
-                newe.append(getPrime(self._l, randfunc))
-        '''
-        newe = self.getPrimeList(self._l, self._T, "seed")
         # sj = 1
         # for i in range(j+1, T):
         #    sj = sj*pow(tj, self._e[i], n) % n
         sj = p[0]
-        tj = pow(tj, newe[j + 1], n)
-        return [j + 1, T, n, sj, tj, newe[j + 1], randfunc]
+        e = self.getprimewithseed(self._l, self._seed[j + 1])
+        tj = pow(tj, e, n)
+        return [j + 1, T, n, sj, tj, e, randfunc, L]
 
     def sign(self, sk, M):
         j = sk[0]
@@ -220,8 +193,10 @@ class FSSIROP():
         else:
             return False
 
+
 '''Test Vector'''
-fssir = FSSIROP(2048, 160, 1000)
+
+fssir = FSSIROP(10, 10, 5)
 
 start = time.time()
 sk, pk = fssir.keygen()

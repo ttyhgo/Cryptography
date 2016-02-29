@@ -9,17 +9,26 @@ from itertools import repeat
 import random
 
 class FSSIR():
-    def __init__(self, k, l, T, randfunc=None):
+    def __init__(self, k, l, T, randfunc=None, seed=None):
         if randfunc is None:
             self._randfunc = Random.new().read
+        else:
+            self._randfunc = randfunc
+        if seed is None:
+            self._seed = []
+            self._seed.append(0)
+            for i in range(1, T + 1):
+                self._seed.append(long_to_bytes(i))
+        else:
+            self._seed = seed
         self._k = k
         self._l = l
         self._T = T
 
     def gensafeprime(self, bit):
         while True:
-            q = number.getPrime(bit-1, self._randfunc)
-            p = 2*q+1
+            q = number.getPrime(bit - 1, self._randfunc)
+            p = 2 * q + 1
             if number.isPrime(p, false_positive_prob=1e-06, randfunc=self._randfunc):
                 return p
 
@@ -29,46 +38,16 @@ class FSSIR():
             if 1 == GCD(r, N):
                 return r
 
-    def isProbablePrime(self, n, t = 7):
-        """Miller-Rabin primality test"""
-
-        def isComposite(a):
-            """Check if n is composite"""
-            if pow(a, d, n) == 1:
-                return False
-            for i in range(s):
-                if pow(a, 2 ** i * d, n) == n - 1:
-                    return False
-            return True
-
-        assert n > 0
-        if n < 3:
-            return [False, False, True][n]
-        elif not n & 1:
-            return False
-        else:
-            s, d = 0, n - 1
-            while not d & 1:
-                s += 1
-                d >>= 1
-        for _ in repeat(None, t):
-            if isComposite(randrange(2, n)):
-                return False
-        return True
-
-    def getPrime(self, n):
-        """Get a n-bit prime"""
-        p = getrandbits(n)
-        while not self.isProbablePrime(p):
-            p = getrandbits(n)
-        return p
-
-    def getPrimeList(self, n, length, seed):
+    def getprimewithseed(self, bit, seed):
         random.seed(seed)
+        return number.getPrime(bit, self._randfunc)
+
+    def getPrimeList(self, bit, length, seedlist):
+
         list = []
         list.append(0)
         for i in range(1, length+1):
-            list.append(self.getPrime(n))
+            list.append(self.getprimewithseed(bit, seedlist[i]))
         return list
 
     def keygen(self):
@@ -78,7 +57,7 @@ class FSSIR():
         n = p1*p2
         phin = (p1-1)*(p2-1)
         t1 = self.randomingroupstar(n)
-        e= self.getPrimeList(self._l, self._T, "seed")
+        e = self.getPrimeList(self._l, self._T, self._seed)
         '''
         for i in range(0, self._T):
             e.append(number.getPrime(self._l, self._randfunc))
@@ -108,7 +87,7 @@ class FSSIR():
 
         if j == T-1:
             return None
-        newe= self.getPrimeList(self._l, T, "seed")
+        newe = self.getPrimeList(self._l, T, self._seed)
         '''
         for i in range(0, self._T):
             if i <= j:
@@ -169,7 +148,7 @@ class FSSIR():
 
 
 '''Test Vector'''
-fssir = FSSIR(2048, 160, 1000)
+fssir = FSSIR(10, 10, 5)
 
 start = time.time()
 sk, pk = fssir.keygen()
