@@ -95,7 +95,7 @@ class FSSIROP():
         i = 1
         sk = [i, self._T, n, s1, t2, e, self._randfunc, L]
         pk = [n, v, self._T]
-        print L
+        #print L
         return sk, pk
 
     def pebblestep(self, L, n):
@@ -160,7 +160,7 @@ class FSSIROP():
         sj = p[0]
         e = self.getprimewithseed(self._l, self._seed[j + 1])
         tj = pow(tj, e, n)
-        print "Update after L",L
+        #print "Update after L",L
         return [j + 1, T, n, sj, tj, e, randfunc, L]
 
     def sign(self, sk, M):
@@ -213,7 +213,7 @@ class FSSIROP():
 
 '''Test Vector'''
 
-fssir = FSSIROP(10, 10, 16)
+fssir = FSSIROP(2048, 160, 100)
 
 start = time.time()
 sk, pk = fssir.keygen()

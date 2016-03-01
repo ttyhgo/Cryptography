@@ -148,7 +148,7 @@ class FSSIR():
 
 
 '''Test Vector'''
-fssir = FSSIR(10, 10, 5)
+fssir = FSSIR(2048, 160, 1000)
 
 start = time.time()
 sk, pk = fssir.keygen()
