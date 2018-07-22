@@ -1,10 +1,12 @@
-from Crypto.PublicKey.pubkey import *
-from Crypto.Util import number
-from Crypto.Util import randpool
-from Crypto import Random
-from Crypto.Random import random
-from Crypto.Hash import SHA256
-from Crypto.PublicKey.pubkey import *
+#from Cryptodome.PublicKey.pubkey import *
+from Cryptodome.Util import number
+from Cryptodome.Util.number import *
+#from Cryptodome.Util import randpool
+from Cryptodome import Random
+from Cryptodome.Random import random
+from Cryptodome.Hash import SHA256
+from Cryptodome.Math.Primality import *
+#from Cryptodome.PublicKey.pubkey import *
 import time
 import random
 from random import randrange, getrandbits
@@ -31,16 +33,19 @@ class FSSIROP():
         self._L = []
 
     def gensafeprime(self, bit):
+		return bit
+		'''
         while True:
+            print bit
             q = number.getPrime(bit - 1, self._randfunc)
             p = 2 * q + 1
             if number.isPrime(p, false_positive_prob=1e-06, randfunc=self._randfunc):
                 return p
-
+        '''
     def randomingroupstar(self, N):
         while True:
             r = number.getRandomRange(3, N, self._randfunc)
-            if 1 == GCD(r, N):
+            if 1 == GCD(Integer(r), N):
                 return r
 
     def getprimewithseed(self, bit, seed):
@@ -56,10 +61,14 @@ class FSSIROP():
         return list
 
     def keygen(self):
-
+        exact_bit = int(self._k/2)
+        print exact_bit
+        p1 = generate_probable_safe_prime(exact_bits=exact_bit)
+        p2 = generate_probable_safe_prime(exact_bits=exact_bit)
+        '''
         p1 = self.gensafeprime(self._k/2)
         p2 = self.gensafeprime(self._k/2)
-
+        '''
         n = p1 * p2
         phin = (p1 - 1) * (p2 - 1)
         t1 = self.randomingroupstar(n)
@@ -90,8 +99,8 @@ class FSSIROP():
         #print "first p",p
         s1 = p[0]
         e = self.getprimewithseed(self._l, self._seed[1])
-        v = inverse(pow(s1, e, n), n)
-        t2 = pow(t1, e, n)
+        v = pow(s1, e, n).inverse(n)
+        t2 = pow(Integer(t1), Integer(e), n)
         i = 1
         sk = [i, self._T, n, s1, t2, e, self._randfunc, L]
         pk = [n, v, self._T]
@@ -101,7 +110,7 @@ class FSSIROP():
     def pebblestep(self, L, n):
         flag = 0
         i = 0
-        #print "Pebble Step start"
+#print "Pebble Step start"
         for p in L:
             if p[1] == p[2] or flag == 1:
                 flag = 0
@@ -114,8 +123,11 @@ class FSSIROP():
             else:
                 self.moveright(p, n)
             i += 1
-        #print "L",L
-        #print "Pebble Step End"
+        L2 = []
+        for p in L:
+            L2.append(p[1:])
+        print L2
+#print "Pebble Step End"
 
     def moveleft(self, p, L, i, n):
         #print "Pebble Left"
@@ -129,14 +141,14 @@ class FSSIROP():
             L.insert(i+1, p1)
             p[4] = (p[3] + p[4] - 1) / 2
         e = self.getprimewithseed(self._l, self._seed[p[2]])
-        p[0] = pow(p[0], e, n)
+        p[0] = pow(Integer(p[0]), Integer(e), n)
         p[2] -= 1
         #print "Pebble Left End"
 
     def moveright(self, p, n):
         #print "Pebble Right"
         e = self.getprimewithseed(self._l, self._seed[p[2]])
-        p[0] = pow(p[0], e, n)
+        p[0] = pow(Integer(p[0]), Integer(e), n)
         p[1] += 1
         #print "Pebble Right End"
 
@@ -151,7 +163,9 @@ class FSSIROP():
         randfunc = sk[6]
         L = sk[7]
 
+        print "Start Pebble"
         self.pebblestep(L, n)
+        print "End Pebble"
         #print "Udating L",L
         p = L.pop(0)
         if j == T - 1:
@@ -173,14 +187,14 @@ class FSSIROP():
         randfunc = sk[6]
 
         r = self.randomingroupstar(n)
-        y = pow(r, e, n)
+        y = pow(Integer(r), Integer(e), n)
         h = SHA256.new()
         h.update(long_to_bytes(j))
         h.update(long_to_bytes(e))
         h.update(long_to_bytes(y))
         h.update(M)
         sig = bytes_to_long(h.digest())
-        z = r * pow(sj, sig, n) % n
+        z = Integer(r) * pow(sj, sig, n) % n
         # print sig
         return [z, sig, j, e]
 
@@ -213,7 +227,7 @@ class FSSIROP():
 
 '''Test Vector'''
 
-fssir = FSSIROP(2048, 160, 100)
+fssir = FSSIROP(1024, 160, 16)
 
 start = time.time()
 sk, pk = fssir.keygen()
